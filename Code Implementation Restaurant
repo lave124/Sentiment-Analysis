@@ -1,0 +1,97 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+import nltk
+import re
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score , classification_report , confusion_matrix
+import pickle
+import seaborn as sns
+
+df=pd.read_csv("C:\\Users\\lovish pc\\Downloads\\archive (20)\\Restaurant_Reviews.tsv",delimiter='\t',quoting=3)
+
+print(df)
+
+df.head()
+
+df.shape
+
+df.isnull().sum()
+
+df.describe()
+
+df.info()
+
+df['Liked'].value_counts()
+
+sns.countplot(df['Liked'])
+
+label = LabelEncoder()
+df['Liked'] = label.fit_transform(df['Liked'])
+
+df.head()
+
+X = df['Review']
+y = df['Liked']
+
+ps = PorterStemmer()
+corpus = []
+
+for i in range(len(X)):
+    print(i)
+    review = re.sub("[^a-zA-Z]"," ", X[i])
+    review = review.lower()
+    review = review.split()
+    review = [ps.stem(word) for word in review if word not in set(stopwords.words("english"))]
+    review = " ".join(review)
+    corpus.append(review)
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+cv = TfidfVectorizer(max_features=1500)
+X = cv.fit_transform(corpus).toarray()
+
+X_train , X_test , Y_train , Y_test = train_test_split(X , y , test_size=0.4 , random_state=32)
+
+mnb = MultinomialNB()
+mnb.fit(X_train , Y_train)
+
+pred = mnb.predict(X_test)
+
+print(accuracy_score(Y_test , pred))
+print(confusion_matrix(Y_test , pred))
+print(classification_report(Y_test , pred))
+
+pd.DataFrame(np.c_[Y_test , pred] , columns=["Actual" , "Predicted"])
+
+pickle.dump(cv , open("count-Vectorizer.pkl" , "wb"))
+pickle.dump(mnb , open("Movies_Review_Classification.pkl" , "wb"))
+
+save_cv = pickle.load(open('count-Vectorizer.pkl','rb'))
+model = pickle.load(open('Movies_Review_Classification.pkl','rb'))
+
+def test_model(sentence):
+    sen = save_cv.transform([sentence]).toarray()
+    res = model.predict(sen)[0]
+    if res == 1:
+        return 'Positive review'
+    else:
+        return 'Negative review'
+
+sen = 'This is the wonderful Restaurant of my life'
+res = test_model(sen)
+print(res)
+
+sen = 'This is the worst Restaurant, I have ever seen in my life'
+res = test_model(sen)
+print(res)
+
+
+
+
+
+
+
